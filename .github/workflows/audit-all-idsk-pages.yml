@@ -1,0 +1,243 @@
+name: Audit all Ochodnica IDSK pages
+
+on:
+  push:
+    paths:
+      - 'sk/**'
+      - 'assets/**'
+      - 'idsk.css'
+      - '.github/workflows/audit-all-idsk-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ochodnica-idsk-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout generated IDSK site
+        uses: actions/checkout@v4
+
+      - name: Install audit dependencies
+        run: python -m pip install --quiet requests beautifulsoup4
+
+      - name: Discover every public source page and compare with IDSK output
+        shell: bash
+        run: |
+          cat > /tmp/audit.py <<'PY'
+          import os,re,time,csv
+          from collections import deque
+          from pathlib import Path
+          from urllib.parse import urljoin,urlsplit,urlunsplit,parse_qsl,urlencode,unquote
+          import xml.etree.ElementTree as ET
+          import requests
+          from bs4 import BeautifulSoup
+
+          ROOT='https://www.ochodnica.sk/'
+          HOSTS={'www.ochodnica.sk','ochodnica.sk'}
+          MAX_FETCH=5000
+          DEADLINE=time.time()+18*60
+          OUT=Path('audit-report'); OUT.mkdir(exist_ok=True)
+          session=requests.Session()
+          session.headers.update({'User-Agent':'Mozilla/5.0 Ochodnica IDSK completeness audit/1.0'})
+
+          # Query variants are crawled when useful for discovering archive pages, but
+          # completeness is measured by canonical public path because IDSK output
+          # preserves the original path structure.
+          ALLOWED_QUERY={'page','p','strana','start','offset','rok','year','cat','category'}
+          SKIP_PATH_PARTS=('/admin','/administrator','/login','/logout','/api/','/ajax/','/captcha')
+          ASSET_EXT={'.jpg','.jpeg','.png','.gif','.webp','.svg','.avif','.bmp','.tif','.tiff','.ico',
+                     '.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx','.odt','.ods','.rtf','.csv',
+                     '.zip','.rar','.7z','.mp3','.wav','.ogg','.m4a','.aac','.mp4','.webm','.mov','.m4v','.avi','.mpeg','.mpg',
+                     '.css','.js','.mjs','.json','.xml','.txt','.woff','.woff2','.ttf','.otf','.eot'}
+
+          REQUIRED_EXAMPLES={
+            '/sk/uradne-oznamy/2026/oznamenie-o-akcii-29-30-08-2026.html'
+          }
+
+          q=deque(); queued=set(); fetched=set(); source_paths=set(); errors=[]
+
+          def ext(path): return Path(path).suffix.lower()
+          def is_asset_path(path): return ext(path) in ASSET_EXT
+
+          def canonical(raw,base=ROOT,keep_query=True):
+              if not raw or raw.startswith(('mailto:','tel:','javascript:','data:','blob:','#')): return None
+              u=urljoin(base,raw); p=urlsplit(u)
+              host=p.netloc.lower().split(':')[0]
+              if host not in HOSTS: return None
+              path=re.sub(r'/+','/',p.path or '/')
+              if any(x in path.lower() for x in SKIP_PATH_PARTS): return None
+              query=''
+              if keep_query and p.query:
+                  kept=[]
+                  for k,v in parse_qsl(p.query,keep_blank_values=False):
+                      if k.lower() in ALLOWED_QUERY and len(v)<=40 and re.fullmatch(r'[A-Za-z0-9._-]+',v or ''):
+                          kept.append((k,v))
+                  if kept: query=urlencode(sorted(kept))
+              return urlunsplit(('https','www.ochodnica.sk',path,query,''))
+
+          def path_only(u):
+              p=urlsplit(u)
+              path=re.sub(r'/+','/',p.path or '/')
+              return path
+
+          def enqueue(u):
+              c=canonical(u,keep_query=True)
+              if not c or c in queued or c in fetched or is_asset_path(path_only(c)): return
+              if len(queued)+len(fetched)>=MAX_FETCH: return
+              queued.add(c); q.append(c)
+
+          def expected_file(path):
+              path=unquote(path).strip('/')
+              if not path: return Path('index.html')
+              e=Path(path).suffix.lower()
+              if e in {'.html','.htm'}: return Path(path)
+              if e in {'.php','.asp','.aspx'}: return Path(path+'.html')
+              if e: return Path(path)
+              return Path(path)/'index.html'
+
+          def parse_sitemap(data,depth=0):
+              if depth>4: return
+              try:
+                  root=ET.fromstring(data)
+                  locs=[x.text.strip() for x in root.iter() if x.tag.lower().endswith('loc') and x.text]
+                  if root.tag.lower().endswith('sitemapindex'):
+                      for loc in locs[:200]:
+                          try:
+                              r=session.get(loc,timeout=(7,20))
+                              if r.status_code==200: parse_sitemap(r.content,depth+1)
+                          except Exception as ex: errors.append([loc,'sitemap',str(ex)])
+                  else:
+                      for loc in locs: enqueue(loc)
+              except Exception as ex:
+                  errors.append(['sitemap-parse','sitemap',str(ex)])
+
+          # Seeds: home, sitemaps, robots, plus known archive roots.
+          for u in [ROOT,ROOT+'sk/',ROOT+'sk/uradne-oznamy/',ROOT+'sk/kategoria/novinky-z-obce/',ROOT+'sk/o-obci/',ROOT+'sk/samosprava/',ROOT+'sk/obcan-a-podnikatel/']:
+              enqueue(u)
+          for sm in [ROOT+'sitemap.xml',ROOT+'sitemap_index.xml']:
+              try:
+                  r=session.get(sm,timeout=(7,20))
+                  if r.status_code==200: parse_sitemap(r.content)
+              except Exception as ex: errors.append([sm,'sitemap',str(ex)])
+          try:
+              r=session.get(ROOT+'robots.txt',timeout=(7,20))
+              if r.status_code==200:
+                  for line in r.text.splitlines():
+                      if line.lower().startswith('sitemap:'):
+                          sm=line.split(':',1)[1].strip()
+                          try:
+                              rr=session.get(sm,timeout=(7,20))
+                              if rr.status_code==200: parse_sitemap(rr.content)
+                          except Exception as ex: errors.append([sm,'robots-sitemap',str(ex)])
+          except Exception as ex: errors.append([ROOT+'robots.txt','robots',str(ex)])
+
+          while q and len(fetched)<MAX_FETCH and time.time()<DEADLINE:
+              u=q.popleft(); queued.discard(u)
+              if u in fetched: continue
+              fetched.add(u)
+              try:
+                  r=session.get(u,timeout=(7,22),allow_redirects=True)
+                  if r.status_code>=400:
+                      errors.append([u,'http',r.status_code]); continue
+                  ctype=(r.headers.get('content-type') or '').lower()
+                  if 'text/html' not in ctype: continue
+                  final=canonical(r.url,keep_query=True) or u
+                  source_paths.add(path_only(final))
+                  soup=BeautifulSoup(r.text,'html.parser')
+                  for a in soup.find_all('a',href=True):
+                      c=canonical(a['href'],final,keep_query=True)
+                      if c and not is_asset_path(path_only(c)):
+                          # Crawl query variants to discover paginated/archive content.
+                          enqueue(c)
+                          source_paths.add(path_only(c))
+                  if len(fetched)%200==0:
+                      print(f'fetched={len(fetched)} queue={len(q)} unique_paths={len(source_paths)}',flush=True)
+              except Exception as ex:
+                  errors.append([u,'fetch',str(ex)])
+
+          source_paths |= REQUIRED_EXAMPLES
+
+          missing=[]
+          for path in sorted(source_paths):
+              f=expected_file(path)
+              if not f.exists(): missing.append((path,str(f)))
+
+          # Validate all local internal links in generated IDSK HTML.
+          broken=[]
+          html_files=[]
+          for base in [Path('index.html'),Path('sk')]:
+              if base.is_file(): html_files.append(base)
+              elif base.is_dir(): html_files.extend(base.rglob('*.html'))
+
+          def href_to_local(href,current):
+              if not href or href.startswith(('#','mailto:','tel:','javascript:','data:','http://','https://')): return None
+              h=href.split('#',1)[0].split('?',1)[0]
+              if not h: return None
+              if h.startswith('/ochodnica/'):
+                  rel=h[len('/ochodnica/'):]
+                  p=Path(rel)
+              elif h.startswith('/'):
+                  return None
+              else:
+                  p=(current.parent/Path(h)).resolve()
+                  try: return p.relative_to(Path.cwd().resolve())
+                  except Exception: return None
+              if str(p).endswith('/') or not p.suffix: p=p/'index.html'
+              return p
+
+          for f in html_files:
+              try:
+                  soup=BeautifulSoup(f.read_text('utf-8',errors='ignore'),'html.parser')
+                  for tag in soup.find_all(['a','img','script','link','source','video']):
+                      href=tag.get('href') or tag.get('src')
+                      p=href_to_local(href,f)
+                      if p is not None and not p.exists(): broken.append((str(f),href,str(p)))
+              except Exception as ex: errors.append([str(f),'local-parse',str(ex)])
+
+          with open(OUT/'SOURCE-PAGES.txt','w',encoding='utf-8') as f:
+              for p in sorted(source_paths): f.write(p+'\n')
+          with open(OUT/'MISSING-PAGES.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f); w.writerow(['source_path','expected_local_file']); w.writerows(missing)
+          with open(OUT/'BROKEN-INTERNAL-LINKS.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f); w.writerow(['from_file','href_or_src','expected_target']); w.writerows(broken)
+          with open(OUT/'AUDIT-ERRORS.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f); w.writerow(['url_or_file','stage','detail']); w.writerows(errors)
+          summary=(
+              f'Original HTML URLs fetched: {len(fetched)}\n'
+              f'Unique original page paths discovered: {len(source_paths)}\n'
+              f'Generated HTML files checked: {len(html_files)}\n'
+              f'Missing IDSK pages: {len(missing)}\n'
+              f'Broken internal IDSK links/assets: {len(broken)}\n'
+              f'Audit fetch/parse errors: {len(errors)}\n'
+          )
+          (OUT/'AUDIT-SUMMARY.txt').write_text(summary,encoding='utf-8')
+          print(summary)
+          if missing:
+              print('FIRST MISSING PAGES:')
+              for row in missing[:100]: print(row[0],'->',row[1])
+          if broken:
+              print('FIRST BROKEN LINKS:')
+              for row in broken[:100]: print(row)
+
+          # Completeness gate: no source page may be absent, and no generated
+          # internal link may point at a non-existent local target.
+          if missing or broken:
+              raise SystemExit(2)
+          PY
+          python /tmp/audit.py
+
+      - name: Upload completeness audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ochodnica-idsk-completeness-audit
+          path: audit-report
+          if-no-files-found: warn
+          retention-days: 14
