@@ -1,0 +1,190 @@
+name: Collect Ochodnica public assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/collect-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SITE_ROOT: https://www.ochodnica.sk
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout demo source
+        uses: actions/checkout@v4
+
+      - name: Prepare collector
+        run: |
+          python -m pip install --quiet requests beautifulsoup4
+          mkdir -p collected/source collected/assets/images collected/assets/documents collected/assets/videos
+          cp -R index.html style.css app.js obec samosprava aktuality uradna-tabula ako-vybavit kontakt collected/source/
+
+      - name: Download public assets from ochodnica.sk
+        shell: bash
+        run: |
+          cat > /tmp/collect.py <<'PY'
+          import os, re, csv, hashlib
+          from pathlib import Path
+          from urllib.parse import urljoin, urlparse, unquote
+          import requests
+          from bs4 import BeautifulSoup
+
+          ROOT='https://www.ochodnica.sk'
+          OUT=Path('collected/assets')
+          for d in ['images','documents','videos']:
+              (OUT/d).mkdir(parents=True,exist_ok=True)
+
+          session=requests.Session()
+          session.headers.update({'User-Agent':'Mozilla/5.0 Ochodnica-demo-migration/1.0'})
+          timeout=25
+          pages=[
+              ROOT+'/',
+              ROOT+'/sk/obecny-urad.html',
+              ROOT+'/sk/galerie',
+              ROOT+'/sk/obcan-a-podnikatel/videogaleria.html',
+              ROOT+'/sk/subory/tlaciva-na-stiahnutie',
+              ROOT+'/sk/o-obci/noviny-ochodnican.html',
+              ROOT+'/sk/kategoria/novinky-z-obce',
+          ]
+          seen_pages=set()
+          assets=[]
+          video_links=set()
+          MAX_EXTRA_PAGES=25
+
+          IMG_EXT={'.jpg','.jpeg','.png','.webp','.gif','.svg'}
+          DOC_EXT={'.pdf','.doc','.docx','.xls','.xlsx','.odt','.ods','.rtf','.zip'}
+          VID_EXT={'.mp4','.webm','.mov','.m4v','.avi'}
+
+          def safe_name(url, fallback):
+              path=unquote(urlparse(url).path)
+              name=os.path.basename(path) or fallback
+              name=re.sub(r'[^A-Za-z0-9._-]+','_',name)
+              if len(name)>140:
+                  stem,ext=os.path.splitext(name)
+                  name=stem[:110]+'_'+hashlib.md5(url.encode()).hexdigest()[:8]+ext
+              return name
+
+          def unique_path(folder, name, url):
+              p=OUT/folder/name
+              if not p.exists(): return p
+              stem,ext=os.path.splitext(name)
+              return OUT/folder/f'{stem}_{hashlib.md5(url.encode()).hexdigest()[:8]}{ext}'
+
+          def download(url, kind):
+              try:
+                  r=session.get(url,timeout=timeout,stream=True,allow_redirects=True)
+                  if r.status_code!=200:
+                      return
+                  ctype=(r.headers.get('content-type') or '').lower()
+                  ext=Path(urlparse(r.url).path).suffix.lower()
+                  if kind=='images' and not (ext in IMG_EXT or ctype.startswith('image/')): return
+                  if kind=='documents' and not (ext in DOC_EXT or 'pdf' in ctype or 'officedocument' in ctype): return
+                  if kind=='videos' and not (ext in VID_EXT or ctype.startswith('video/')): return
+                  name=safe_name(r.url, f'{kind}_{len(assets)+1}')
+                  if '.' not in name:
+                      guess={
+                        'image/jpeg':'.jpg','image/png':'.png','image/webp':'.webp','image/gif':'.gif','image/svg+xml':'.svg',
+                        'application/pdf':'.pdf','video/mp4':'.mp4','video/webm':'.webm'
+                      }.get(ctype.split(';')[0],'')
+                      name+=guess
+                  p=unique_path(kind,name,url)
+                  total=0
+                  with open(p,'wb') as f:
+                      for chunk in r.iter_content(1024*256):
+                          if chunk:
+                              total+=len(chunk)
+                              if total>35*1024*1024:
+                                  f.close(); p.unlink(missing_ok=True); return
+                              f.write(chunk)
+                  assets.append((kind,str(p.relative_to('collected')),url,total,ctype))
+              except Exception:
+                  pass
+
+          def parse_page(url, allow_follow=False):
+              if url in seen_pages: return []
+              seen_pages.add(url)
+              try:
+                  r=session.get(url,timeout=timeout)
+                  if r.status_code!=200: return []
+              except Exception:
+                  return []
+              soup=BeautifulSoup(r.text,'html.parser')
+              follow=[]
+              for img in soup.find_all('img'):
+                  src=img.get('src') or img.get('data-src') or img.get('data-original')
+                  if src:
+                      u=urljoin(r.url,src)
+                      if urlparse(u).netloc.endswith('ochodnica.sk'): download(u,'images')
+                  srcset=img.get('srcset')
+                  if srcset:
+                      for item in srcset.split(','):
+                          u=urljoin(r.url,item.strip().split(' ')[0])
+                          if urlparse(u).netloc.endswith('ochodnica.sk'): download(u,'images')
+              for tag in soup.find_all(['video','source']):
+                  src=tag.get('src')
+                  if src:
+                      u=urljoin(r.url,src)
+                      ext=Path(urlparse(u).path).suffix.lower()
+                      if ext in VID_EXT and urlparse(u).netloc.endswith('ochodnica.sk'):
+                          download(u,'videos')
+              for a in soup.find_all('a',href=True):
+                  u=urljoin(r.url,a['href'])
+                  parsed=urlparse(u)
+                  ext=Path(parsed.path).suffix.lower()
+                  if ext in DOC_EXT and parsed.netloc.endswith('ochodnica.sk'):
+                      download(u,'documents')
+                  elif ext in IMG_EXT and parsed.netloc.endswith('ochodnica.sk'):
+                      download(u,'images')
+                  elif ext in VID_EXT and parsed.netloc.endswith('ochodnica.sk'):
+                      download(u,'videos')
+                  elif any(x in parsed.netloc.lower() for x in ['youtube.com','youtu.be','vimeo.com']):
+                      video_links.add(u)
+                  elif allow_follow and parsed.netloc.endswith('ochodnica.sk'):
+                      p=parsed.path.lower()
+                      if any(x in p for x in ['/galer','/novinky-z-obce/']):
+                          follow.append(u.split('#')[0])
+              for iframe in soup.find_all('iframe',src=True):
+                  u=urljoin(r.url,iframe['src'])
+                  if any(x in urlparse(u).netloc.lower() for x in ['youtube.com','youtu.be','vimeo.com']):
+                      video_links.add(u)
+              return follow
+
+          extras=[]
+          for p in pages:
+              extras.extend(parse_page(p,allow_follow=True))
+          # Follow a limited number of gallery/news detail pages to get representative photos without creating a huge archive.
+          for p in list(dict.fromkeys(extras))[:MAX_EXTRA_PAGES]:
+              parse_page(p,allow_follow=False)
+
+          # Known representative homepage image discovered during audit.
+          download(ROOT+'/img/thumbnails/big/1785265238.jpg','images')
+
+          with open(OUT/'videos'/'external-video-links.txt','w',encoding='utf-8') as f:
+              for u in sorted(video_links): f.write(u+'\n')
+
+          with open('collected/MANIFEST.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f); w.writerow(['type','local_path','source_url','bytes','content_type']); w.writerows(assets)
+
+          with open('collected/README.txt','w',encoding='utf-8') as f:
+              f.write('Ochodnica demo – complete source package\n\n')
+              f.write('source/ = zdrojovy kod dema\nassets/images/ = verejne obrazky stiahnute z ochodnica.sk\nassets/documents/ = verejne dokumenty a tlaciva\nassets/videos/ = priamo hostovane video subory; external-video-links.txt obsahuje odkazy na externych poskytovatelov (YouTube/Vimeo).\n')
+              f.write('\nPoznamka: externé videá sa nekopírujú ako binárne súbory; zachovávajú sa ich verejné odkazy.\n')
+          print('Downloaded assets:', len(assets), 'external videos:', len(video_links))
+          PY
+          python /tmp/collect.py
+          du -sh collected || true
+          find collected -maxdepth 3 -type f | sort | head -200
+
+      - name: Upload complete source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ochodnica-complete-source
+          path: collected
+          if-no-files-found: error
+          retention-days: 7
