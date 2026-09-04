@@ -1,34 +1,194 @@
-<!doctype html>
-<html lang="sk">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Nezáväzná ukážka modernizácie webového sídla obce Ochodnica podľa princípov IDSK 3." />
-  <title>Obec Ochodnica – demo podľa IDSK 3</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-<a class="skip" href="#main">Preskočiť na obsah</a>
-<div class="demo"><strong>DEMO UKÁŽKA</strong><span>Nejde o oficiálne webové sídlo obce Ochodnica.</span></div>
-<header>
-  <div class="govbar"><div class="wrap govbar-in"><span>🇸🇰 Oficiálna stránka verejnej správy SR</span><button id="govToggle">Ako rozpoznať oficiálnu stránku</button></div><div id="govInfo" class="gov-info" hidden><div class="wrap"><strong>Bezpečné a dôveryhodné webové sídlo</strong><p>Táto stránka je iba prezentačné demo. Pri ostrej prevádzke sa použije oficiálna doména obce, HTTPS a identifikácia prevádzkovateľa.</p></div></div></div>
-  <div class="sitehead"><div class="wrap sitehead-in"><a class="brand route" href="#domov" data-route="domov"><span class="crest">O</span><span><b>Obec Ochodnica</b><small>webové sídlo obce</small></span></a><div class="actions"><a href="tel:+421414233121">041 / 423 31 21</a><button id="contrast">Kontrast</button><button id="menu">Menu</button></div></div></div>
-  <nav id="nav"><div class="wrap nav-in"><a class="route" data-route="domov" href="#domov">Domov</a><a class="route" data-route="obec" href="#obec">Obec</a><a class="route" data-route="samosprava" href="#samosprava">Samospráva</a><a class="route" data-route="aktuality" href="#aktuality">Aktuality</a><a class="route" data-route="uradna" href="#uradna">Úradná tabuľa</a><a class="route" data-route="vybavit" href="#vybavit">Ako vybaviť</a><a class="route" data-route="kontakt" href="#kontakt">Kontakt</a></div></nav>
-</header>
-<main id="main">
-<section class="page active" data-page="domov">
-  <section class="hero"><div class="wrap hero-grid"><div><span class="kicker">Vitajte v Ochodnici</span><h1>Informácie z obce jednoducho a na jednom mieste</h1><p>Aktuality, úradné oznamy, služby občanom a kontakty na obecný úrad v prehľadnej podobe.</p><div class="buttons"><a class="btn primary route" data-route="uradna" href="#uradna">Úradná tabuľa</a><a class="btn secondary route" data-route="vybavit" href="#vybavit">Ako vybaviť</a></div></div><div class="art"><div class="sun"></div><div class="hill h1"></div><div class="hill h2"></div><div class="village"><i></i><i></i><i></i><i class="church"></i></div></div></div></section>
-  <section class="section"><div class="wrap"><h2>Najčastejšie hľadáte</h2><div class="quick"><a class="route" data-route="vybavit" href="#vybavit"><b>✓</b><strong>Ako vybaviť</strong><span>Postupy, tlačivá a poplatky</span></a><a class="route" data-route="uradna" href="#uradna"><b>▤</b><strong>Úradná tabuľa</strong><span>Oznamy a dokumenty</span></a><a class="route" data-route="kontakt" href="#kontakt"><b>⌂</b><strong>Obecný úrad</strong><span>Kontakty a úradné hodiny</span></a><a class="route" data-route="samosprava" href="#samosprava"><b>●</b><strong>Samospráva</strong><span>Starosta a zastupiteľstvo</span></a></div></div></section>
-  <section class="section alt"><div class="wrap cols"><div><div class="heading"><div><span class="kicker">Aktuálne</span><h2>Novinky z obce</h2></div><a class="route" data-route="aktuality" href="#aktuality">Všetky aktuality →</a></div><div class="news"><article><time>1. 9. 2026</time><h3>Zmeny v overovaní podpisov a listín</h3><p>Informácia pre občanov o zmenách platných od 1. septembra 2026.</p></article><article><time>31. 8. 2026</time><h3>Oznámenie o prerušení distribúcie elektriny</h3><p>Plánované prerušenie distribúcie elektriny dňa 22. 9. 2026.</p></article><article><time>25. 8. 2026</time><h3>Poďakovanie Dobrovoľnému hasičskému zboru</h3><p>Poďakovanie členom DHZ Ochodnica za pomoc a spoluprácu.</p></article></div></div><aside class="office"><span class="kicker">Obecný úrad</span><h2>Potrebujete niečo vybaviť?</h2><p><b>Ochodnica 121<br>023 35 Ochodnica</b></p><p><b>Telefón</b><br><a href="tel:+421414233121">041 / 423 31 21</a></p><p><b>E-mail</b><br><a href="mailto:obec@ochodnica.sk">obec@ochodnica.sk</a></p><a class="btn primary full route" data-route="kontakt" href="#kontakt">Kontakty a úradné hodiny</a></aside></div></section>
+<!DOCTYPE html>
+
+<html lang="sk"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><meta content="NESS Žilina – webové riešenie podľa IDSK" name="generator"/><title>Novinky z obce – Obec Ochodnica</title><link href="/ochodnica/idsk.css" rel="stylesheet"/></head>
+<body><a class="skip" href="#main">Preskočiť na obsah</a>
+<div class="gov"><div class="wrap">Verejná správa Slovenskej republiky</div></div>
+<header class="head"><div class="wrap"><a class="brand" href="/ochodnica/"><img alt="Erb obce Ochodnica" class="brand-logo" src="/ochodnica/assets/migrated/images/1c5ac9f7c63c_logo.png"/><span><strong>Obec Ochodnica</strong><small>webové sídlo obce</small></span></a></div></header>
+<nav aria-label="Hlavná navigácia" class="nav"><div class="wrap"><a href="/ochodnica/">Domov</a><a href="/ochodnica/sk/o-obci/">Obec</a><a href="/ochodnica/sk/samosprava/">Samospráva</a><a href="/ochodnica/sk/kategoria/novinky-z-obce/">Aktuality</a><a href="/ochodnica/sk/uradne-oznamy/">Úradné oznamy</a><a href="/ochodnica/sk/obcan-a-podnikatel/">Ako vybaviť</a><a href="/ochodnica/sk/obecny-urad.html">Kontakt</a></div></nav>
+<main id="main"><div class="wrap"><div class="crumb"><a href="/ochodnica/">Domov</a> › Novinky z obce</div><span class="kicker">Obec Ochodnica</span><h1>Novinky z obce</h1><div class="content"><main class="main-content" role="main">
+<div class="container">
+<div class="row">
+<div class="col-12 col-xl-8">
+<div class="bg-white rounded">
+<div class="p-3 p-lg-5 border-bottom border-bcolor">
+<div class="row no-gutters align-items-center mb-4">
+<div class="col-12 col-md-6">
+<h1 class="beta mb-2 mb-md-0">Novinky z obce</h1>
+</div>
+<div class="col-12 col-md-6 text-md-right">
+<a href="/ochodnica/sk/kategoria/novinky-z-obce/">Všetky novinky z obce<svg class="icon ml-2" height="14" width="6"><use xlink:href="#angle-right"></use></svg></a>
+</div>
+</div>
+<article class="row position-relative">
+<div class="col-12 col-md-5 col-lg-6 mb-3 mb-md-0">
+<img alt="" class="d-block img-fluid rounded" height="230" src="/ochodnica/assets/migrated/images/cff679ba4ef0_1788357816.jpg" srcset="/ochodnica/assets/migrated/images/2c3d6df604cd__2x1788357816.jpg 2x" width="330"/>
+</div>
+<div class="col-12 col-md-7 col-lg-6 position-static pt-1">
+<h2 class="gamma mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/zmeny-v-overovani-podpisov-a-listin-platne-od-01-09-2026.html">Zmeny v overovaní podpisov a listín platné od 01.09.2026</a></h2>
+<time class="d-block text-gray mb-2 mb-md-3" datetime="">01. 09. 2026</time>
+<div class="typography">
+<p class="mb-0 font-size-bigger">
+                    Zmeny v overovaní podpisov a listín platné od 01.09.2026
+
+Nový zákon o osvedčovaní listín a podpisov na listinách obsahuje v...                 </p>
+</div>
+</div>
+</article>
+</div>
+<div class="p-3 p-lg-5">
+<article class="mb-3 pb-3 border-bottom border-bcolor position-relative">
+<div class="row align-items-md-center">
+<div class="col-3 col-md-4 d-none d-md-block">
+<img alt="" class="lazy js-lazy d-block rounded img-fluid" height="140" src="/ochodnica/assets/migrated/images/449ae57bf0ae_1788186635.jpg" srcset="/ochodnica/assets/migrated/images/276bfd71be42__2x1788186635.jpg 2x" width="200"/>
+</div>
+<div class="col-12 col-md-8 position-static">
+<h3 class="delta mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/oznamenie-o-preruseni-distribucie-elektriny-dna-22-09-2026.html">Oznámenie o prerušení distribúcie elektriny dňa 22.09.2026.</a></h3>
+<time class="d-block text-gray mb-2" datetime="2026-08-31"><span class="fa fa-calendar fa-r"></span>31. 08. 2026 16:26</time>
+<div class="typography">
+<p class="mb-0">Oznámenie o prerušení distribúcie elektriny
+
+ v termíne od: 22.09.2026 07:15 do: 22.09.2026 16:30
+
+ bude v ... </p>
+</div>
+</div>
+</div>
+</article><article class="mb-3 pb-3 border-bottom border-bcolor position-relative">
+<div class="row align-items-md-center">
+<div class="col-3 col-md-4 d-none d-md-block">
+<img alt="" class="lazy js-lazy d-block rounded img-fluid" height="140" src="/ochodnica/assets/migrated/images/2ad692953cd4_1787753909.jpg" srcset="/ochodnica/assets/migrated/images/1059767bb4cd__2x1787753909.jpg 2x" width="200"/>
+</div>
+<div class="col-12 col-md-8 position-static">
+<h3 class="delta mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/odstavka-vody-dna-27-08-2026.html">Odstávka vody dňa 27.08.2026.</a></h3>
+<time class="d-block text-gray mb-2" datetime="2026-08-26"><span class="fa fa-calendar fa-r"></span>26. 08. 2026 16:17</time>
+<div class="typography">
+<p class="mb-0">Vážení občania,
+
+dňa 27. augusta 2026 bude obec Ochodnica vykonávať doplnenie traťového uzáveru na vodovodnom potrubí.
+
+Z ... </p>
+</div>
+</div>
+</div>
+</article><article class="mb-3 pb-3 border-bottom border-bcolor position-relative">
+<div class="row align-items-md-center">
+<div class="col-3 col-md-4 d-none d-md-block">
+<img alt="" class="lazy js-lazy d-block rounded img-fluid" height="140" src="/ochodnica/assets/migrated/images/06a005d1610d_1787753488.jpg" srcset="/ochodnica/assets/migrated/images/ad3de9f0f931__2x1787753488.jpg 2x" width="200"/>
+</div>
+<div class="col-12 col-md-8 position-static">
+<h3 class="delta mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/vystava-ovocia-zeleniny-a-aranzovania-v-ochodnici-2026.html">Výstava ovocia, zeleniny a aranžovania v Ochodnici 2026</a></h3>
+<time class="d-block text-gray mb-2" datetime="2026-08-26"><span class="fa fa-calendar fa-r"></span>26. 08. 2026 16:08</time>
+<div class="typography">
+<p class="mb-0">Základná organizácia Slovenského zväzu záhradkárov v Ochodnici s podporou obce Ochodnica srdečne pozýva všetkých obyvateľov, p... </p>
+</div>
+</div>
+</div>
+</article><article class="mb-3 pb-3 border-bottom border-bcolor position-relative">
+<div class="row align-items-md-center">
+<div class="col-3 col-md-4 d-none d-md-block">
+<img alt="" class="lazy js-lazy d-block rounded img-fluid" height="140" src="/ochodnica/assets/migrated/images/0408b52f099b_1787744014.jpg" srcset="/ochodnica/assets/migrated/images/e28dcc128120__2x1787744014.jpg 2x" width="200"/>
+</div>
+<div class="col-12 col-md-8 position-static">
+<h3 class="delta mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/zaciatok-roka-v-ms.html">Začiatok roka v  MŠ.</a></h3>
+<time class="d-block text-gray mb-2" datetime="2026-08-26"><span class="fa fa-calendar fa-r"></span>26. 08. 2026 13:32</time>
+<div class="typography">
+<p class="mb-0">Riaditeľka materskej školy v Ochodnici oznamuje rodičom, že začiatok školského roka 2026/2027 je
+
+      ... </p>
+</div>
+</div>
+</div>
+</article><article class="mb-3 pb-3 border-bottom border-bcolor position-relative">
+<div class="row align-items-md-center">
+<div class="col-3 col-md-4 d-none d-md-block">
+<img alt="" class="lazy js-lazy d-block rounded img-fluid" height="140" src="/ochodnica/assets/migrated/images/4ebcdeee6359_1787644770.jpg" srcset="/ochodnica/assets/migrated/images/04145a444c32__2x1787644770.jpg 2x" width="200"/>
+</div>
+<div class="col-12 col-md-8 position-static">
+<h3 class="delta mb-2"><a class="stretched-link text-tertiary" href="/ochodnica/sk/novinky-z-obce/2026/podakovanie-dhz-ochodnica.html">Poďakovanie DHZ Ochodnica. </a></h3>
+<time class="d-block text-gray mb-2" datetime="2026-08-25"><span class="fa fa-calendar fa-r"></span>25. 08. 2026 09:43</time>
+<div class="typography">
+<p class="mb-0">🙏 VEĽKÉ ĎAKUJEME DOBROVOĽNÉMU HASIČSKÉMU ZBORU OCHODNICA ❤️
+
+Ďakujeme veľmi pekne Dobrovoľný hasičský zbor Ochodnica za okam... </p>
+</div>
+</div>
+</div>
+</article> <div class="text-center mt-5">
+<a class="btn" href="/ochodnica/sk/kategoria/novinky-z-obce/">všetky novinky z obce</a>
+</div>
+</div> </div>
+</div>
+<aside class="col-12 col-xl-4 mt-4 mt-xl-0">
+<section class="mb-4 rounded bg-tertiary pl-3 pr-3 pt-5 pb-5 p-lg-5">
+<h2 class="text-white">Úradné oznamy</h2>
+<article class="article-list-item mb-3">
+<h3 class="article-list-title mb-2"><a class="text-white font-size-bigger font-weight-normal" href="/ochodnica/sk/uradne-oznamy/2026/oznamenie-o-akcii-29-30-08-2026.html">Oznámenie o akcii 29-30.08.2026</a></h3>
+<time class="d-block text-gray" datetime="2026-08-28T14:17Z">28. 08. 2026</time>
+</article>
+<article class="article-list-item mb-3">
+<h3 class="article-list-title mb-2"><a class="text-white font-size-bigger font-weight-normal" href="/ochodnica/sk/uradne-oznamy/2026/zverejnenie-zameru-prenajmu-nebytovych-priestorov-vo-vlastnictve-obce.html">Zverejnenie zámeru prenájmu nebytových priestorov vo vlastníctve obce.  </a></h3>
+<time class="d-block text-gray" datetime="2026-08-26T09:49Z">26. 08. 2026</time>
+</article>
+<article class="article-list-item mb-3">
+<h3 class="article-list-title mb-2"><a class="text-white font-size-bigger font-weight-normal" href="/ochodnica/sk/uradne-oznamy/2026/oznamenie-o-akcii-22-23-08-2026.html">Oznámenie o akcii 22-23.08.2026.</a></h3>
+<time class="d-block text-gray" datetime="2026-08-21T11:21Z">21. 08. 2026</time>
+</article>
+<a class="btn btn-block mt-5" href="/ochodnica/sk/kategoria/uradne-oznamy/">úradné oznamy</a>
+<a class="btn btn-block mt-3" href="/ochodnica/sk/kategoria/stavebne-povolenia/">Stavebné povolenia</a>
 </section>
-<section class="page" data-page="aktuality"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Aktuality</div><span class="kicker">Dianie v obci</span><h1>Aktuality</h1><p class="lead">Najnovšie správy, upozornenia a informácie pre obyvateľov obce Ochodnica.</p><div class="search"><input type="search" placeholder="Hľadať v aktualitách"><button>Hľadať</button></div><div class="list"><article><time>1. 9. 2026</time><h2>Zmeny v overovaní podpisov a listín</h2><p>Prehľad zmien a praktické informácie pre občanov.</p></article><article><time>31. 8. 2026</time><h2>Prerušenie distribúcie elektriny</h2><p>Plánované prerušenie distribúcie elektriny dňa 22. 9. 2026.</p></article><article><time>25. 8. 2026</time><h2>Poďakovanie DHZ Ochodnica</h2><p>Obec ďakuje členom dobrovoľného hasičského zboru.</p></article></div></div></section>
-<section class="page" data-page="uradna"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Úradná tabuľa</div><span class="kicker">Zverejňovanie</span><h1>Úradná tabuľa</h1><p class="lead">Úradné oznamy, verejné vyhlášky a zverejnené dokumenty.</p><div class="filters"><input type="search" placeholder="Vyhľadať dokument"><select><option>Všetky typy</option><option>Úradný oznam</option><option>Verejná vyhláška</option><option>Zámer</option></select></div><div class="docs"><article><b>PDF</b><div><span>Úradný oznam</span><h2>Oznámenie o akcii 29.–30.08.2026</h2><p>Zverejnené 28. 8. 2026</p></div><a href="#">Detail →</a></article><article><b>PDF</b><div><span>Zámer</span><h2>Zámer prenájmu nebytových priestorov vo vlastníctve obce</h2><p>Zverejnené 26. 8. 2026</p></div><a href="#">Detail →</a></article></div></div></section>
-<section class="page" data-page="vybavit"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Ako vybaviť</div><span class="kicker">Služby občanom</span><h1>Ako vybaviť</h1><p class="lead">Najčastejšie životné situácie a služby obecného úradu.</p><div class="services"><a href="#"><strong>Overenie podpisu a listiny</strong><span>Doklady, poplatok a postup →</span></a><a href="#"><strong>Trvalý pobyt</strong><span>Potrebné doklady a postup →</span></a><a href="#"><strong>Miestne dane a poplatky</strong><span>Termíny, tlačivá a kontakty →</span></a><a href="#"><strong>Stavebná agenda</strong><span>Žiadosti a kontaktné miesto →</span></a><a href="#"><strong>Odpadové hospodárstvo</strong><span>Zber, triedenie a harmonogram →</span></a><a href="#"><strong>Podnet alebo žiadosť</strong><span>Kontaktujte obecný úrad →</span></a></div></div></section>
-<section class="page" data-page="kontakt"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Kontakt</div><span class="kicker">Obecný úrad</span><h1>Kontakt</h1><p class="lead">Kontaktné údaje a úradné hodiny Obecného úradu Ochodnica.</p><div class="contact-grid"><div class="panel"><h2>Obecný úrad Ochodnica</h2><p>Ochodnica 121<br>023 35 Ochodnica</p><p><b>Telefón</b><br><a href="tel:+421414233121">041 / 423 31 21</a><br><a href="tel:+421902748575">0902 748 575</a></p><p><b>E-mail</b><br><a href="mailto:obec@ochodnica.sk">obec@ochodnica.sk</a></p><p><b>IČO</b><br>00314153</p></div><div><h2>Úradné hodiny</h2><div class="hours"><div><span>Pondelok</span><b>8:00 – 12:00, 13:00 – 15:00</b></div><div><span>Utorok</span><b>8:00 – 12:00, 13:00 – 15:00</b></div><div><span>Streda</span><b>8:00 – 12:00, 13:00 – 16:00</b></div><div><span>Štvrtok</span><b>Nestránkový deň</b></div><div><span>Piatok</span><b>8:00 – 12:00, 13:00 – 14:00</b></div></div></div></div></div></section>
-<section class="page" data-page="obec"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Obec</div><span class="kicker">O Ochodnici</span><h1>Obec Ochodnica</h1><p class="lead">Ukážka prehľadnej prezentácie základných informácií o obci.</p><div class="stats"><div><b>≈ 1 805 ha</b><span>rozloha obce</span></div><div><b>Žilinský kraj</b><span>región Kysuce</span></div><div><b>023 35</b><span>PSČ</span></div></div><h2>Informácie o obci</h2><p>V reálnej verzii sa sem premigruje história, symboly obce, demografia, územný plán, cestovný ruch a ďalší existujúci obsah.</p></div></section>
-<section class="page" data-page="samosprava"><div class="wrap content"><div class="crumb"><a class="route" data-route="domov" href="#domov">Domov</a> › Samospráva</div><span class="kicker">Vedenie obce</span><h1>Samospráva</h1><p class="lead">Prehľad volených orgánov obce a dôležitých kontaktov.</p><div class="person"><div class="avatar">RĎ</div><div><span>Starosta obce</span><h2>Radoslav Ďuroška</h2><a href="tel:+421907886944">0907 886 944</a></div></div><div class="services"><a href="#"><strong>Obecné zastupiteľstvo</strong><span>Poslanci, zasadnutia a uznesenia →</span></a><a href="#"><strong>Komisie</strong><span>Zloženie a činnosť komisií →</span></a><a href="#"><strong>Hlavný kontrolór</strong><span>Kontakty a dokumenty →</span></a></div></div></section>
-</main>
-<footer><div class="wrap footgrid"><div><b class="footbrand">Obec Ochodnica</b><p>Ochodnica 121, 023 35 Ochodnica</p><p><a href="mailto:obec@ochodnica.sk">obec@ochodnica.sk</a> · <a href="tel:+421414233121">041 / 423 31 21</a></p></div><div><b>Rýchle odkazy</b><a class="route" data-route="uradna" href="#uradna">Úradná tabuľa</a><a class="route" data-route="vybavit" href="#vybavit">Ako vybaviť</a><a class="route" data-route="kontakt" href="#kontakt">Kontakt</a></div><div><b>Informácie</b><a href="#">Vyhlásenie o prístupnosti</a><a href="#">Ochrana osobných údajov</a><a href="#">Cookies</a></div></div><div class="wrap footbottom"><span>Demo návrh webového sídla · IDSK 3</span><span>Neoficiálna ukážka</span></div></footer>
-<script src="app.js"></script>
-</body>
-</html>
+<div class="mb-4 rounded bg-white pl-3 pr-3 pt-2 pb-2 p-lg-2">
+<a href="/ochodnica/sk/novinky-z-obce/2026/volby-do-organov-samospravy-obci-a-volby-do-organov-samospravnych-krajov.html" title="Voľby do orgánov samosprávy obcí a voľby do orgánov samosprávnych krajov"><img alt="Voľby do orgánov samosprávy obcí a voľby do orgánov samosprávnych krajov" class="img-responsive" src="/ochodnica/assets/migrated/images/8948d53a640a_volby-obec-2026.jpg"/></a>
+</div> <div class="mb-4 rounded bg-secondary pl-3 pr-3 pt-5 pb-5 p-lg-5">
+<ul>
+<li><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/samosprava/stavebny-urad.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/d4a014b3278f_icon-organizacie.svg" width="40"/>
+
+                Stavebný úrad            </a>
+</li>
+<li><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/obcan-a-podnikatel/zoznam-danovych-dlznikov.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/d4a014b3278f_icon-organizacie.svg" width="40"/>
+
+                Zoznam dlžníkov            </a>
+</li>
+<li class="border-bottom border-blue-lighter"><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/assets/migrated/misc/d15aae8208b3_stiahnite-si-ochodnicu-do-svojho-mobilu.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/a2b90d4fe4db_icon-speech.svg" width="40"/>
+
+                mobilná aplikácia            </a>
+</li>
+<li class="border-bottom border-blue-lighter"><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/separovany-zber-a-vyvoz-odpadu.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/8dbfe1b96a0a_icon-recycle.svg" width="40"/>
+
+                separovaný zber            </a>
+</li>
+<li class="border-bottom border-blue-lighter"><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/assets/migrated/misc/a4ef35ea55b0_tlaciva-na-stiahnutie.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/541033d82423_icon-download.svg" width="40"/>
+
+                tlačivá na stiahnutie            </a>
+</li>
+<li class="border-bottom border-blue-lighter"><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/elektronicke-sluzby.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/bf5ee8c3798e_icon-browser.svg" width="40"/>
+
+                elektronické služby            </a>
+</li>
+<li><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/cestovny-poriadok.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/f233cee7dce2_icon-bus.svg" width="40"/>
+
+                cestovný poriadok            </a>
+</li>
+<li><a class="d-flex align-items-center pt-2 pb-2 text-uppercase text-white font-weight-bold" href="/ochodnica/sk/obcan-a-podnikatel/zaujmove-organizacie.html">
+<img alt="" class="d-block mr-3 lazy js-lazy" height="40" src="/ochodnica/assets/migrated/images/d4a014b3278f_icon-organizacie.svg" width="40"/>
+
+                Záujmové organizácie            </a>
+</li>
+</ul>
+</div>
+<div class="mb-4 rounded bg-white pl-3 pr-3 pt-5 pb-5 p-lg-5">
+<a href="/ochodnica/assets/migrated/documents/eb901996caee_okletak.pdf" title="Poradňa komplexnej pomoci">
+<img alt="Poradňa komplexnej pomoci" class="img-fluid d-block m-auto shadow lazy js-lazy" src="/ochodnica/assets/migrated/images/f44801e017c0_okletak-m.jpg"/>
+</a>
+</div> </aside>
+</div>
+</div>
+</main></div></div></main>
+<footer class="footer"><div class="wrap"><div class="footgrid"><div><strong>Obec Ochodnica</strong><span>Ochodnica 121, 023 35 Ochodnica</span><span>IČO: 00314153</span></div><div><strong>Kontakt</strong><a href="tel:+421414233121">041 / 423 31 21</a><a href="mailto:obec@ochodnica.sk">obec@ochodnica.sk</a></div><div><strong>Webové sídlo</strong><span>Technické riešenie a realizácia</span><span class="ness">NESS Žilina</span></div></div><div class="footbottom">© Obec Ochodnica · Webové riešenie podľa princípov IDSK · Realizácia: NESS Žilina</div></div></footer>
+</body></html>

@@ -1,0 +1,12 @@
+Ochodnica – úplná migrácia obsahu do IDSK vzhľadu
+Generated HTML pages: 186
+Downloaded assets: 2307
+Downloaded asset bytes: 806389906
+HTTP requests: 2506
+Crawler errors/warnings: 9
+Unresolved transient/429 failures: 0
+Broken migrated asset references: 0
+Missing generated page files: 0
+Critical official notice present: True
+Branding: NESS Žilina
+Publication policy: publish only after validation passes.
