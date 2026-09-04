@@ -1,0 +1,92 @@
+name: Mirror original Ochodnica website
+
+on:
+  push:
+    paths:
+      - '.github/workflows/mirror-original-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wget zip python3-bs4 python3-requests
+
+      - name: Mirror public website
+        run: |
+          mkdir -p mirror
+          cd mirror
+          wget \
+            --mirror \
+            --recursive \
+            --level=inf \
+            --page-requisites \
+            --convert-links \
+            --adjust-extension \
+            --content-disposition \
+            --restrict-file-names=windows \
+            --domains=ochodnica.sk,www.ochodnica.sk \
+            --wait=0.5 \
+            --random-wait \
+            --timeout=30 \
+            --tries=2 \
+            --user-agent='Mozilla/5.0 Ochodnica migration crawler' \
+            --execute robots=on \
+            https://www.ochodnica.sk/ || true
+
+      - name: Build inventory and collect external video links
+        run: |
+          cat > /tmp/inventory.py <<'PY'
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import csv, os
+          from bs4 import BeautifulSoup
+
+          root=Path('mirror')
+          rows=[]
+          videos=set()
+          counts={}
+          for p in root.rglob('*'):
+              if not p.is_file():
+                  continue
+              ext=p.suffix.lower() or '[none]'
+              counts[ext]=counts.get(ext,0)+1
+              rows.append([str(p.relative_to(root)), p.stat().st_size, ext])
+              if ext in {'.html','.htm'}:
+                  try:
+                      soup=BeautifulSoup(p.read_text('utf-8',errors='ignore'),'html.parser')
+                      for tag in soup.find_all(['iframe','a','video','source']):
+                          u=tag.get('src') or tag.get('href')
+                          if not u: continue
+                          lu=u.lower()
+                          if any(x in lu for x in ['youtube.com','youtu.be','vimeo.com']): videos.add(u)
+                  except Exception:
+                      pass
+          with open(root/'MIRROR-INVENTORY.csv','w',newline='',encoding='utf-8') as f:
+              w=csv.writer(f); w.writerow(['path','bytes','extension']); w.writerows(sorted(rows))
+          with open(root/'EXTERNAL-VIDEO-LINKS.txt','w',encoding='utf-8') as f:
+              for u in sorted(videos): f.write(u+'\n')
+          with open(root/'MIRROR-SUMMARY.txt','w',encoding='utf-8') as f:
+              f.write('Full public mirror of https://www.ochodnica.sk/\n')
+              f.write('Respecting robots.txt and limited to ochodnica.sk domains.\n\n')
+              f.write(f'Files: {len(rows)}\n')
+              f.write(f'External video links: {len(videos)}\n\n')
+              for k,v in sorted(counts.items()): f.write(f'{k}: {v}\n')
+          PY
+          python /tmp/inventory.py
+          du -sh mirror || true
+          cat mirror/MIRROR-SUMMARY.txt
+
+      - name: Upload full mirror
+        uses: actions/upload-artifact@v4
+        with:
+          name: ochodnica-full-public-mirror
+          path: mirror
+          if-no-files-found: error
+          retention-days: 7
