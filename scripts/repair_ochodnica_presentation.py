@@ -1,5 +1,6 @@
 from pathlib import Path
 from bs4 import BeautifulSoup
+from html import escape
 import sys
 
 OUT = Path("idsk-full-v4")
@@ -15,8 +16,16 @@ NAV = [
     ("Kontakt", f"{BASE}/sk/kontakt.html"),
 ]
 
+SECTION_INDEXES = [
+    ("sk/o-obci", "Obec", "Informácie o obci"),
+    ("sk/samosprava", "Samospráva", "Informácie o samospráve"),
+    ("sk/obcan-a-podnikatel", "Občan a podnikateľ", "Informácie pre občanov a podnikateľov"),
+]
+
+
 def norm(text):
     return " ".join((text or "").split()).strip().casefold()
+
 
 def localize(value):
     if not value or not isinstance(value, str):
@@ -30,6 +39,7 @@ def localize(value):
     if value.startswith("/"):
         return BASE + value
     return value
+
 
 def contact_card(soup):
     card = soup.new_tag("div")
@@ -53,6 +63,44 @@ def contact_card(soup):
     card.append(actions)
     return card
 
+
+def page_title(path):
+    try:
+        soup = BeautifulSoup(path.read_text("utf-8", errors="ignore"), "html.parser")
+        h1 = soup.select_one("#main > .wrap > h1") or soup.find("h1")
+        if h1 and h1.get_text(" ", strip=True):
+            return h1.get_text(" ", strip=True)
+        if soup.title and soup.title.string:
+            return soup.title.string.split(" – ")[0].strip()
+    except Exception:
+        pass
+    return path.stem.replace("-", " ").strip().capitalize()
+
+
+def section_index_html(section_dir, title, intro):
+    directory = OUT / section_dir
+    links = []
+    for child in sorted(directory.glob("*.html"), key=lambda p: page_title(p).casefold()):
+        if child.name == "index.html":
+            continue
+        label = page_title(child)
+        href = f"{BASE}/{child.relative_to(OUT).as_posix()}"
+        links.append(f'<li><a href="{escape(href, quote=True)}">{escape(label)}</a></li>')
+
+    nav_html = "".join(
+        f'<a href="{escape(href, quote=True)}">{escape(label)}</a>'
+        for label, href in NAV
+    )
+    items = "".join(links) or "<li>V tejto sekcii zatiaľ nie sú ďalšie položky.</li>"
+    return f'''<!DOCTYPE html>
+<html lang="sk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)} – Obec Ochodnica</title><link rel="stylesheet" href="{BASE}/idsk.css"></head>
+<body><a class="skip" href="#main">Preskočiť na obsah</a><div class="top"><div class="wrap">Obec Ochodnica</div></div>
+<header class="head"><div class="wrap"><a class="brand" href="{BASE}/"><img alt="Erb obce Ochodnica" src="{BASE}/assets/migrated/images/1c5ac9f7c63c_logo.png"><span><strong>Obec Ochodnica</strong><small>webové sídlo obce</small></span></a></div></header>
+<nav class="nav" aria-label="Hlavná navigácia"><div class="wrap">{nav_html}</div></nav>
+<main id="main"><div class="wrap"><div class="crumb"><a href="{BASE}/">Domov</a> › {escape(title)}</div><span class="kicker">Obec Ochodnica</span><h1>{escape(title)}</h1><div class="content source-content"><div class="section-index"><p>{escape(intro)}. Vyberte si požadovanú položku:</p><ul class="section-links">{items}</ul></div></div></div></main>
+<footer class="footer"><div class="wrap"><div class="footgrid"><div><strong>Obec Ochodnica</strong><span>Ochodnica 121, 023 35 Ochodnica</span><a href="mailto:obec@ochodnica.sk">obec@ochodnica.sk</a></div><div><strong>Technické riešenie a realizácia</strong><span>NESS Žilina</span></div></div><div class="footbottom">Obsah migrovaný z pôvodného verejného webového sídla obce Ochodnica.</div></div></footer></body></html>'''
+
+
 if not OUT.exists():
     raise SystemExit(f"Missing generated output: {OUT}")
 
@@ -70,6 +118,8 @@ for path in OUT.rglob("*.html"):
             a = soup.new_tag("a", href=href)
             a.string = label
             primary.append(a)
+        if primary.parent is not None:
+            primary.parent["aria-label"] = "Hlavná navigácia"
         changed = True
 
     content = soup.select_one(".source-content")
@@ -80,7 +130,7 @@ for path in OUT.rglob("*.html"):
             nested.unwrap()
             changed = True
 
-        # Remove copied source breadcrumb only when it contains the original #home SVG.
+        # Remove the copied source breadcrumb; the IDSK shell already has one.
         for ul in list(content.find_all("ul")):
             home = any(
                 (use.get("xlink:href") or use.get("href")) == "#home"
@@ -137,6 +187,17 @@ for path in OUT.rglob("*.html"):
         path.write_text(str(soup), encoding="utf-8")
         pages += 1
 
+# The source web exposes section children but not stable section index files.
+# Create clean IDSK landing pages so the primary navigation never points at a 404.
+section_pages = 0
+for section_dir, title, intro in SECTION_INDEXES:
+    directory = OUT / section_dir
+    if not directory.exists():
+        continue
+    index = directory / "index.html"
+    index.write_text(section_index_html(section_dir, title, intro), encoding="utf-8")
+    section_pages += 1
+
 CSS = r"""
 /* Ochodnica v6 presentation repair */
 .source-content{min-width:0}
@@ -186,6 +247,8 @@ CSS = r"""
 .source-content .article-list-title{margin-top:0}.source-content .bg-tertiary a,.source-content .bg-secondary a{color:#fff}
 .source-content .static-contact{margin:24px 0;padding:24px;border-left:5px solid #005ea8;background:#f3f5f7}
 .source-content .static-contact strong{display:block;font-size:22px;margin-bottom:8px}
+.section-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;list-style:none;padding:0!important;margin:24px 0}
+.section-links li{margin:0}.section-links a{display:block;height:100%;padding:15px 17px;border:1px solid #d8dde3;border-left:4px solid #005ea8;background:#fff;text-decoration:none;font-weight:700}.section-links a:hover{background:#f3f5f7;text-decoration:underline}
 @media(min-width:768px){
 .source-content .col-md-3{flex:0 0 25%;max-width:25%}.source-content .col-md-4{flex:0 0 33.333%;max-width:33.333%}
 .source-content .col-md-6{flex:0 0 50%;max-width:50%}.source-content .col-md-8{flex:0 0 66.667%;max-width:66.667%}
@@ -195,7 +258,7 @@ CSS = r"""
 @media(min-width:1100px){
 .source-content .col-xl-4{flex:0 0 33.333%;max-width:33.333%}.source-content .col-xl-8{flex:0 0 66.667%;max-width:66.667%}
 .source-content .mt-xl-0{margin-top:0}.source-content .p-lg-2{padding:12px}.source-content .p-lg-5{padding:32px}}
-@media(max-width:767px){.source-content .d-none{display:none}.source-content .row{margin:-8px}.source-content [class*="col-"]{padding:8px}main{padding-top:28px}}
+@media(max-width:767px){.source-content .d-none{display:none}.source-content .row{margin:-8px}.source-content [class*="col-"]{padding:8px}.section-links{grid-template-columns:1fr}main{padding-top:28px}}
 """
 css = OUT / "idsk.css"
 current = css.read_text("utf-8", errors="ignore")
@@ -219,7 +282,7 @@ for path in OUT.rglob("*.html"):
         if not target.exists():
             broken.append((path.relative_to(OUT).as_posix(), value))
 
-print(f"Presentation repaired: pages={pages}, duplicate_h1={duplicate_h1}, breadcrumbs={breadcrumbs}, contact_forms={forms}")
+print(f"Presentation repaired: pages={pages}, duplicate_h1={duplicate_h1}, breadcrumbs={breadcrumbs}, contact_forms={forms}, section_indexes={section_pages}")
 print(f"Broken local references after presentation repair: {len(broken)}")
 for row in broken[:50]:
     print("BROKEN", row[0], row[1])
