@@ -1,0 +1,92 @@
+name: Build exhaustive 1:1 Ochodnica site v6
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-full-idsk-site-v6.yml'
+      - 'scripts/build_ochodnica_v6.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ochodnica-exhaustive-1to1-v6
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: python -m pip install --quiet requests beautifulsoup4
+
+      - name: Crawl and repair exhaustive 1:1 site
+        run: python scripts/build_ochodnica_v6.py
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ochodnica-exhaustive-v6-diagnostics
+          path: |
+            idsk-full-v4/MIGRATION-SUMMARY-V4.txt
+            idsk-full-v4/MIGRATION-ERRORS-V4.csv
+            idsk-full-v4/BROKEN-LOCAL-V4.csv
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish validated exhaustive site to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+
+          rm -rf sk galleries assets/migrated obec samosprava aktuality uradna-tabula ako-vybavit kontakt
+          rsync -a idsk-full-v4/ ./
+
+          git config user.name "NESS Zilina migration bot"
+          git config user.email "actions@users.noreply.github.com"
+
+          while IFS= read -r -d '' item; do
+            base="$(basename "$item")"
+            git add -A -- "$base"
+          done < <(find idsk-full-v4 -mindepth 1 -maxdepth 1 -print0)
+          git add -A -- obec samosprava aktuality uradna-tabula ako-vybavit kontakt 2>/dev/null || true
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish repaired exhaustive 1:1 Ochodnica content"
+            if ! git push origin HEAD:main; then
+              git fetch origin main
+              git rebase origin/main
+              git push origin HEAD:main
+            fi
+          fi
+
+      - name: Prepare Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload validated site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: idsk-full-v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy validated 1:1 site
+        id: deployment
+        uses: actions/deploy-pages@v4
