@@ -1,7 +1,7 @@
 from pathlib import Path
 from bs4 import BeautifulSoup
 from html import escape
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 import re
 import sys
 
@@ -64,6 +64,7 @@ def asset_index():
 ASSET_BY_SUFFIX = asset_index()
 source_fallbacks = 0
 reused_assets = 0
+post_forms_repaired = 0
 
 
 def localize(value):
@@ -112,6 +113,44 @@ def localize(value):
     # Do not invent a dead GitHub Pages path. Preserve the exact original public URL.
     source_fallbacks += 1
     return SOURCE + value
+
+
+def source_page_url(path: Path) -> str:
+    rel = path.relative_to(OUT).as_posix()
+    if rel == "index.html":
+        return SOURCE + "/"
+    if rel.endswith("/index.html"):
+        return SOURCE + "/" + rel[:-10]
+    return SOURCE + "/" + rel
+
+
+def repair_post_form(form, path: Path):
+    """Keep source-side POST forms usable from static GitHub Pages.
+
+    Relative/local POST actions would otherwise post to GitHub Pages and fail.
+    Point them back to the equivalent endpoint on the original municipality site.
+    """
+    global post_forms_repaired
+    method = (form.get("method") or "get").strip().lower()
+    if method != "post":
+        return False
+
+    action = (form.get("action") or "").strip()
+    if not action:
+        form["action"] = source_page_url(path)
+        post_forms_repaired += 1
+        return True
+
+    parts = urlsplit(action)
+    if parts.scheme in ("http", "https") or action.startswith("//"):
+        return False
+
+    if action.startswith("/"):
+        form["action"] = SOURCE + action
+    else:
+        form["action"] = urljoin(source_page_url(path), action)
+    post_forms_repaired += 1
+    return True
 
 
 def contact_card(soup):
@@ -220,11 +259,16 @@ for path in page_files():
                     duplicate_h1 += 1
                     changed = True
 
-        if path.relative_to(OUT).as_posix() == "sk/kontakt.html":
+        rel_path = path.relative_to(OUT).as_posix()
+        if rel_path == "sk/kontakt.html":
             for form in list(content.find_all("form")):
                 form.replace_with(contact_card(soup))
                 forms += 1
                 changed = True
+        else:
+            for form in content.find_all("form"):
+                if repair_post_form(form, path):
+                    changed = True
 
     # Resolve only generated-page references. Never rewrite captured HTML assets.
     for tag in soup.find_all(True):
@@ -299,7 +343,7 @@ for path in page_files():
         if not target.exists():
             broken.append((path.relative_to(OUT).as_posix(), value))
 
-print(f"Presentation v2 repaired: pages={pages}, duplicate_h1={duplicate_h1}, breadcrumbs={breadcrumbs}, contact_forms={forms}, section_indexes={section_pages}")
+print(f"Presentation v2 repaired: pages={pages}, duplicate_h1={duplicate_h1}, breadcrumbs={breadcrumbs}, contact_forms={forms}, post_forms_repaired={post_forms_repaired}, section_indexes={section_pages}")
 print(f"Reused migrated assets for old root-relative refs: {reused_assets}")
 print(f"Preserved original source URL fallbacks: {source_fallbacks}")
 print(f"Broken local references after presentation v2: {len(broken)}")
