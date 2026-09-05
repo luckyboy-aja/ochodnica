@@ -2,13 +2,12 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from collections import Counter
 import csv
+import re
 import sys
 
 OUT = Path("idsk-full-v4")
 BASE = "/ochodnica"
 
-# Explicit representative pages from every important area. These are checked in
-# addition to the all-page structural QC performed by visual_qc_ochodnica.py.
 REPRESENTATIVE_PAGES = [
     "index.html",
     "sk/o-obci/index.html",
@@ -33,8 +32,6 @@ REPRESENTATIVE_PAGES = [
     "sk/uradne-oznamy/2026/oznamenie-o-akcii-29-30-08-2026.html",
 ]
 
-# Coverage floors. They make the build fail if a whole content area silently
-# disappears even when individual links happen to stay syntactically valid.
 SECTION_FLOORS = {
     "o-obci": ("sk/o-obci/*.html", 10),
     "samosprava": ("sk/samosprava/*.html", 10),
@@ -49,6 +46,7 @@ if not OUT.exists():
 
 errors = []
 checked = 0
+aliases_checked = 0
 counts = Counter()
 
 
@@ -56,11 +54,59 @@ def fail(rel, code, detail=""):
     errors.append((rel, code, detail))
 
 
+def rel_path(path: Path) -> str:
+    return path.relative_to(OUT).as_posix()
+
+
+def is_migrated_asset_html(path: Path) -> bool:
+    return rel_path(path).startswith("assets/migrated/")
+
+
+def alias_target(soup):
+    refresh = soup.find("meta", attrs={"http-equiv": lambda v: v and str(v).casefold() == "refresh"})
+    canonical = soup.find("link", rel=lambda v: v and "canonical" in ([v] if isinstance(v, str) else v))
+    refresh_target = None
+    if refresh:
+        content = refresh.get("content") or ""
+        m = re.search(r"url\s*=\s*(.+)$", content, flags=re.I)
+        if m:
+            refresh_target = m.group(1).strip().strip("'\"")
+    canonical_target = (canonical.get("href") or "").strip() if canonical else None
+    if refresh_target and canonical_target and refresh_target == canonical_target:
+        return refresh_target
+    return None
+
+
+def local_target_exists(value: str) -> bool:
+    if not value.startswith(BASE + "/") and value != BASE:
+        return True
+    clean = value.split("#", 1)[0].split("?", 1)[0]
+    rel_target = clean[len(BASE):].lstrip("/")
+    target = OUT / rel_target
+    if not rel_target:
+        target = OUT / "index.html"
+    elif clean.endswith("/") or not Path(rel_target).suffix:
+        target = target / "index.html"
+    return target.exists()
+
+
 def inspect_page(path: Path, representative=False):
-    global checked
+    global checked, aliases_checked
     checked += 1
-    rel = path.relative_to(OUT).as_posix()
+    rel = rel_path(path)
     soup = BeautifulSoup(path.read_text("utf-8", errors="ignore"), "html.parser")
+
+    redirect = alias_target(soup)
+    if redirect:
+        aliases_checked += 1
+        if representative:
+            fail(rel, "representative-page-is-redirect", redirect)
+        if not local_target_exists(redirect):
+            fail(rel, "redirect-target-missing", redirect)
+        body_link = soup.find("a", href=True)
+        if body_link is None or body_link.get("href") != redirect:
+            fail(rel, "redirect-fallback-link-mismatch", redirect)
+        return
 
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     h1 = soup.find("h1")
@@ -78,23 +124,22 @@ def inspect_page(path: Path, representative=False):
     text = " ".join(content.get_text(" ", strip=True).split())
     meaningful = content.find(["p", "li", "article", "table", "img", "h2", "h3", "a"])
 
-    # Representative pages must contain a meaningful body, not just the shell.
     if representative:
         if len(text) < 20 and content.find("img") is None:
             fail(rel, "representative-content-too-short", f"chars={len(text)}")
         if meaningful is None:
             fail(rel, "representative-content-empty")
 
-    # Catch source error pages accidentally migrated as content.
     low_title = title.casefold()
     if "404" in low_title or "stránka sa nenašla" in low_title or "page not found" in low_title:
         fail(rel, "source-error-page-migrated", title)
 
-    # Links/images that are visibly empty or unusable.
     for img in content.find_all("img"):
         src = (img.get("src") or "").strip()
         if not src:
             fail(rel, "image-without-src")
+        elif src.startswith(BASE + "/") and not local_target_exists(src):
+            fail(rel, "broken-local-image", src)
 
     for a in content.find_all("a"):
         href = (a.get("href") or "").strip()
@@ -103,8 +148,9 @@ def inspect_page(path: Path, representative=False):
             fail(rel, "link-without-href", label[:120])
         if href.lower().startswith("javascript:"):
             fail(rel, "javascript-link-left", href[:160])
+        if href.startswith(BASE + "/") and not local_target_exists(href):
+            fail(rel, "broken-local-link", href)
 
-    # No old server-side form may survive anywhere on the static site.
     for form in content.find_all("form"):
         method = (form.get("method") or "get").lower()
         action = (form.get("action") or "").strip()
@@ -112,7 +158,10 @@ def inspect_page(path: Path, representative=False):
             fail(rel, "server-form-left", f"method={method}; action={action}")
 
 
-html_pages = list(OUT.rglob("*.html"))
+# Public HTML pages only. Downloaded HTML artefacts under assets/migrated are
+# content files, not IDSK page shells, and are already covered by migration link
+# validation.
+html_pages = [p for p in OUT.rglob("*.html") if not is_migrated_asset_html(p)]
 for page in html_pages:
     inspect_page(page, representative=False)
 
@@ -129,8 +178,6 @@ for name, (pattern, minimum) in SECTION_FLOORS.items():
     if len(matches) < minimum:
         fail(pattern, "section-coverage-below-floor", f"found={len(matches)} minimum={minimum}")
 
-# Check that the homepage exposes both news and official-notice content, because
-# these are the two most visible dynamic sections after migration.
 home = OUT / "index.html"
 if home.exists():
     soup = BeautifulSoup(home.read_text("utf-8", errors="ignore"), "html.parser")
@@ -140,8 +187,6 @@ if home.exists():
     if not any("/sk/uradne-oznamy/" in href for href in hrefs):
         fail("index.html", "homepage-missing-official-notice-links")
 
-# Persist diagnostics so we can inspect exactly which page failed without
-# relying only on a truncated Actions console log.
 with (OUT / "DEEP-QC-ERRORS.csv").open("w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
     w.writerow(["page", "code", "detail"])
@@ -149,7 +194,8 @@ with (OUT / "DEEP-QC-ERRORS.csv").open("w", newline="", encoding="utf-8") as f:
 
 summary = [
     "Ochodnica – deep subpage QC",
-    f"All HTML pages inspected: {len(html_pages)}",
+    f"Public HTML pages inspected: {len(html_pages)}",
+    f"Redirect aliases validated: {aliases_checked}",
     f"Representative pages re-inspected: {len(REPRESENTATIVE_PAGES)}",
     f"QC errors: {len(errors)}",
 ]
