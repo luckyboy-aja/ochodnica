@@ -1,0 +1,12 @@
+Ochodnica – exhaustive 1:1 migration
+URLs processed: 4373
+HTML pages fetched/generated: 1356
+Redirect aliases generated: 8
+Assets available locally: 6575
+HTTP requests: 8665
+Unresolved transient/429: 0
+Content text mismatches: 0
+Broken local references: 0
+Crawler warnings/errors: 34
+Critical official notice present: True
+Branding: NESS Žilina
