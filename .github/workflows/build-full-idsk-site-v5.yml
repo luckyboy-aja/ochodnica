@@ -1,0 +1,212 @@
+name: Build exhaustive 1:1 Ochodnica site v5
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-full-idsk-site-v5.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ochodnica-exhaustive-1to1-v5
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: python -m pip install --quiet requests beautifulsoup4
+
+      - name: Build patched v5 crawler from exhaustive v4
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          src = Path('.github/workflows/build-full-idsk-site-v4.yml').read_text(encoding='utf-8')
+          lines = src.splitlines()
+          start = next(i for i, line in enumerate(lines) if "cat > /tmp/build_v4.py <<'PY'" in line)
+          body = []
+          for line in lines[start + 1:]:
+              if line.strip() == 'PY':
+                  break
+              body.append(line[10:] if line.startswith('          ') else line)
+          script = '\n'.join(body) + '\n'
+
+          marker = "\ncritical=OUT/'sk/uradne-oznamy/2026/oznamenie-o-akcii-29-30-08-2026.html'"
+          if marker not in script:
+              raise SystemExit('Could not locate v4 validation marker')
+
+          repair = r'''
+# v5 repair pass: resolve any local target that remained unclassified after the exhaustive crawl.
+# A source URL is re-fetched when possible. If the original target itself is unavailable,
+# preserve the original source URL instead of leaving a broken local URL.
+if broken:
+    print('V5 first-pass broken references:', flush=True)
+    for row in broken:
+        print('  ', row, flush=True)
+
+    reverse = {page_href(u): u for u in processed}
+    first_pass_values = {row[1] for row in broken}
+
+    for _, v in list(broken):
+        u = reverse.get(v)
+        if not u and v.startswith('/ochodnica/') and 'page--q-' not in v:
+            rel = v[len('/ochodnica/'):]
+            u = canonical(ROOT + rel)
+        if not u:
+            continue
+        k = asset_key(u)
+        if k not in asset_map and u not in html_urls and u not in aliases:
+            print(f'V5 repairing target from source: {u}', flush=True)
+            process(u)
+
+    # Classify links introduced by any repair-generated HTML page.
+    for p in OUT.rglob('*.html'):
+        soup = BeautifulSoup(p.read_text('utf-8', errors='ignore'), 'html.parser')
+        changed = False
+        for a in soup.select('a[data-original-internal]'):
+            u = a.get('data-original-internal')
+            k = asset_key(u)
+            if k in asset_map:
+                a['href'] = asset_map[k]
+            elif u in html_urls or u in aliases:
+                a['href'] = page_href(u)
+            else:
+                a['href'] = u
+            del a['data-original-internal']
+            changed = True
+        if changed:
+            p.write_text(str(soup), encoding='utf-8')
+
+    # Replace any of the original broken local targets with the now-known local target.
+    # If the source URL is genuinely unavailable, retain its original URL rather than a dead local link.
+    reverse = {page_href(u): u for u in processed}
+    for p in OUT.rglob('*.html'):
+        soup = BeautifulSoup(p.read_text('utf-8', errors='ignore'), 'html.parser')
+        changed = False
+        for tag in soup.find_all(['a', 'img', 'source', 'video', 'audio', 'link']):
+            attr = 'href' if tag.get('href') is not None else 'src'
+            v = tag.get(attr)
+            if v not in first_pass_values:
+                continue
+            u = reverse.get(v)
+            if not u and v.startswith('/ochodnica/') and 'page--q-' not in v:
+                u = canonical(ROOT + v[len('/ochodnica/'):])
+            replacement = None
+            if u:
+                k = asset_key(u)
+                if k in asset_map:
+                    replacement = asset_map[k]
+                elif u in html_urls or u in aliases:
+                    replacement = page_href(u)
+                else:
+                    replacement = u
+            if replacement and replacement != v:
+                tag[attr] = replacement
+                changed = True
+        if changed:
+            p.write_text(str(soup), encoding='utf-8')
+
+    # Re-run the hard local-reference check after the repair.
+    broken = []
+    for p in OUT.rglob('*.html'):
+        soup = BeautifulSoup(p.read_text('utf-8', errors='ignore'), 'html.parser')
+        for tag in soup.find_all(['a', 'img', 'source', 'video', 'audio', 'link']):
+            v = tag.get('href') or tag.get('src')
+            if not v or not v.startswith('/ochodnica/'):
+                continue
+            rel = v[len('/ochodnica/'):].split('#', 1)[0].split('?', 1)[0]
+            target = OUT / rel
+            if not rel:
+                target = OUT / 'index.html'
+            elif v.split('?', 1)[0].endswith('/') or not Path(rel).suffix:
+                target = target / 'index.html'
+            if not target.exists():
+                broken.append([str(p.relative_to(OUT)), v])
+
+    print(f'V5 broken references after repair: {len(broken)}', flush=True)
+    for row in broken:
+        print('  ', row, flush=True)
+'''
+
+          script = script.replace(marker, '\n' + repair + marker, 1)
+          Path('/tmp/build_v5.py').write_text(script, encoding='utf-8')
+          PY
+          python /tmp/build_v5.py
+
+      - name: Upload v5 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ochodnica-exhaustive-v5-diagnostics
+          path: |
+            idsk-full-v4/MIGRATION-SUMMARY-V4.txt
+            idsk-full-v4/MIGRATION-ERRORS-V4.csv
+            idsk-full-v4/BROKEN-LOCAL-V4.csv
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish validated exhaustive site to repository
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Synchronize with commits that may have landed during the long crawl.
+          git fetch origin main
+          git reset --hard origin/main
+
+          # Remove the previous migrated trees and the old demo-only routes.
+          rm -rf sk galleries assets/migrated obec samosprava aktuality uradna-tabula ako-vybavit kontakt
+
+          # Copy every generated top-level path, not only /sk, so gallery/archive aliases are preserved.
+          rsync -a idsk-full-v4/ ./
+
+          git config user.name "NESS Zilina migration bot"
+          git config user.email "actions@users.noreply.github.com"
+
+          # Stage all generated top-level items without staging the build directory itself.
+          while IFS= read -r -d '' item; do
+            base="$(basename "$item")"
+            git add -A -- "$base"
+          done < <(find idsk-full-v4 -mindepth 1 -maxdepth 1 -print0)
+          git add -A -- obec samosprava aktuality uradna-tabula ako-vybavit kontakt 2>/dev/null || true
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish repaired exhaustive 1:1 Ochodnica content"
+            if ! git push origin HEAD:main; then
+              git fetch origin main
+              git rebase origin/main
+              git push origin HEAD:main
+            fi
+          fi
+
+      - name: Prepare Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload validated site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: idsk-full-v4
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy validated 1:1 site
+        id: deployment
+        uses: actions/deploy-pages@v4
