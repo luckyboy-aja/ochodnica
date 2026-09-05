@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/build-full-idsk-site-v6.yml'
       - 'scripts/build_ochodnica_v6.py'
-      - 'scripts/repair_ochodnica_presentation.py'
+      - 'scripts/repair_ochodnica_presentation_v2.py'
       - 'scripts/visual_qc_ochodnica.py'
       - 'scripts/deep_qc_ochodnica.py'
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
         run: python scripts/build_ochodnica_v6.py
 
       - name: Repair IDSK navigation and migrated presentation
-        run: python scripts/repair_ochodnica_presentation.py
+        run: python scripts/repair_ochodnica_presentation_v2.py
 
       - name: Run visual and structural QC
         run: python scripts/visual_qc_ochodnica.py
