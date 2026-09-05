@@ -7,6 +7,7 @@ on:
       - 'scripts/build_ochodnica_v6.py'
       - 'scripts/repair_ochodnica_presentation.py'
       - 'scripts/visual_qc_ochodnica.py'
+      - 'scripts/deep_qc_ochodnica.py'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +41,9 @@ jobs:
       - name: Run visual and structural QC
         run: python scripts/visual_qc_ochodnica.py
 
+      - name: Run deep QC across subpages
+        run: python scripts/deep_qc_ochodnica.py
+
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,6 +53,8 @@ jobs:
             idsk-full-v4/MIGRATION-SUMMARY-V4.txt
             idsk-full-v4/MIGRATION-ERRORS-V4.csv
             idsk-full-v4/BROKEN-LOCAL-V4.csv
+            idsk-full-v4/DEEP-QC-SUMMARY.txt
+            idsk-full-v4/DEEP-QC-ERRORS.csv
           if-no-files-found: warn
           retention-days: 14
 
