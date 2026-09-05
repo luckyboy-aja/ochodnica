@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/build-full-idsk-site-v6.yml'
       - 'scripts/build_ochodnica_v6.py'
+      - 'scripts/repair_ochodnica_presentation.py'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +32,9 @@ jobs:
 
       - name: Crawl and repair exhaustive 1:1 site
         run: python scripts/build_ochodnica_v6.py
+
+      - name: Repair IDSK navigation and migrated presentation
+        run: python scripts/repair_ochodnica_presentation.py
 
       - name: Upload diagnostics
         if: always()
