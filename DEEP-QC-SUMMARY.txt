@@ -1,0 +1,15 @@
+Ochodnica – deep subpage QC
+Public HTML pages inspected: 1359
+Redirect aliases validated: 8
+Representative pages re-inspected: 21
+QC errors: 0
+Static POST forms made inert: 1
+Email links repaired: 5
+Formatting anchors unwrapped: 2
+Empty image placeholders removed: 4
+Coverage o-obci: 16
+Coverage samosprava: 14
+Coverage obcan-a-podnikatel: 18
+Coverage novinky-z-obce: 700
+Coverage uradne-oznamy: 262
+Coverage kategorie: 105

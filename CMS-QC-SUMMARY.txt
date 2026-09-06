@@ -1,0 +1,7 @@
+Ochodnica CMS render
+Site root: idsk-full-v4
+CMS aktuality: 0
+CMS úradné oznamy: 0
+CMS nové stránky: 0
+CMS prepísané existujúce stránky: 0
+CMS QC errors: 0
