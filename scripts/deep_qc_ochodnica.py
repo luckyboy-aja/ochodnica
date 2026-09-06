@@ -48,6 +48,7 @@ errors = []
 checked = 0
 aliases_checked = 0
 counts = Counter()
+repairs = Counter()
 
 
 def fail(rel, code, detail=""):
@@ -90,6 +91,67 @@ def local_target_exists(value: str) -> bool:
     return target.exists()
 
 
+def normalize_static_content(soup, content):
+    """Repair only markup that cannot work on static GitHub Pages or renders nothing.
+    Keep all visible source text and fields intact.
+    """
+    changed = False
+
+    # Preserve legacy form fields/text, but make POST forms inert on a static site.
+    for form in content.find_all("form"):
+        method = (form.get("method") or "get").lower()
+        action = (form.get("action") or "").strip()
+        if method == "post":
+            if action:
+                form["data-original-action"] = action
+            form["data-original-method"] = method
+            form.attrs.pop("action", None)
+            form.attrs.pop("method", None)
+            form["onsubmit"] = "return false"
+            for button in form.find_all(["button", "input"]):
+                kind = (button.get("type") or "").lower()
+                if button.name == "button" or kind in ("submit", "image"):
+                    button["disabled"] = "disabled"
+            notice = soup.new_tag("p")
+            notice["class"] = ["static-form-notice"]
+            notice.string = "Formulár je v tejto statickej verzii iba informatívny a údaje neodosiela."
+            form.insert_before(notice)
+            repairs["post_forms_inert"] += 1
+            changed = True
+
+    # Source occasionally contains <a> only as formatting, without href.
+    # Turn actual e-mail labels into mailto links; unwrap other empty anchors.
+    for a in list(content.find_all("a")):
+        href = (a.get("href") or "").strip()
+        if href:
+            continue
+        label = " ".join(a.get_text(" ", strip=True).split())
+        if not label:
+            a.unwrap()
+            repairs["empty_anchors_unwrapped"] += 1
+            changed = True
+            continue
+        if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", label):
+            a["href"] = "mailto:" + label
+            repairs["email_links_repaired"] += 1
+        else:
+            a.unwrap()
+            repairs["text_anchors_unwrapped"] += 1
+        changed = True
+
+    # An img without src and without alt text renders nothing. Remove only these
+    # empty placeholders; a missing src with meaningful alt still remains a QC error.
+    for img in list(content.find_all("img")):
+        src = (img.get("src") or "").strip()
+        alt = (img.get("alt") or "").strip()
+        if not src and not alt:
+            img.decompose()
+            repairs["empty_images_removed"] += 1
+            changed = True
+
+    return changed
+
+
 def inspect_page(path: Path, representative=False):
     global checked, aliases_checked
     checked += 1
@@ -121,6 +183,9 @@ def inspect_page(path: Path, representative=False):
         fail(rel, "missing-source-content")
         return
 
+    if normalize_static_content(soup, content):
+        path.write_text(str(soup), encoding="utf-8")
+
     text = " ".join(content.get_text(" ", strip=True).split())
     meaningful = content.find(["p", "li", "article", "table", "img", "h2", "h3", "a"])
 
@@ -130,14 +195,16 @@ def inspect_page(path: Path, representative=False):
         if meaningful is None:
             fail(rel, "representative-content-empty")
 
+    # Detect genuine error pages, but do not flag legitimate titles such as V404.
     low_title = title.casefold()
-    if "404" in low_title or "stránka sa nenašla" in low_title or "page not found" in low_title:
+    standalone_404 = re.search(r"(?<![\w])404(?![\w])", low_title) is not None
+    if standalone_404 or "stránka sa nenašla" in low_title or "page not found" in low_title:
         fail(rel, "source-error-page-migrated", title)
 
     for img in content.find_all("img"):
         src = (img.get("src") or "").strip()
         if not src:
-            fail(rel, "image-without-src")
+            fail(rel, "image-without-src", (img.get("alt") or "")[:120])
         elif src.startswith(BASE + "/") and not local_target_exists(src):
             fail(rel, "broken-local-image", src)
 
@@ -159,8 +226,7 @@ def inspect_page(path: Path, representative=False):
 
 
 # Public HTML pages only. Downloaded HTML artefacts under assets/migrated are
-# content files, not IDSK page shells, and are already covered by migration link
-# validation.
+# content files, not IDSK page shells, and are already covered by migration link validation.
 html_pages = [p for p in OUT.rglob("*.html") if not is_migrated_asset_html(p)]
 for page in html_pages:
     inspect_page(page, representative=False)
@@ -198,6 +264,10 @@ summary = [
     f"Redirect aliases validated: {aliases_checked}",
     f"Representative pages re-inspected: {len(REPRESENTATIVE_PAGES)}",
     f"QC errors: {len(errors)}",
+    f"Static POST forms made inert: {repairs['post_forms_inert']}",
+    f"Email links repaired: {repairs['email_links_repaired']}",
+    f"Formatting anchors unwrapped: {repairs['text_anchors_unwrapped'] + repairs['empty_anchors_unwrapped']}",
+    f"Empty image placeholders removed: {repairs['empty_images_removed']}",
 ]
 for name in SECTION_FLOORS:
     summary.append(f"Coverage {name}: {counts[name]}")
