@@ -195,10 +195,19 @@ def inspect_page(path: Path, representative=False):
         if meaningful is None:
             fail(rel, "representative-content-empty")
 
-    # Detect genuine error pages, but do not flag legitimate titles such as V404.
-    low_title = title.casefold()
-    standalone_404 = re.search(r"(?<![\w])404(?![\w])", low_title) is not None
-    if standalone_404 or "stránka sa nenašla" in low_title or "page not found" in low_title:
+    # Detect genuine error pages without treating legitimate technical identifiers
+    # such as "V 404" / "V404" (electricity line designation) as HTTP 404 errors.
+    low_title = " ".join(title.casefold().split())
+    explicit_not_found = "stránka sa nenašla" in low_title or "page not found" in low_title
+    explicit_404_title = any(
+        re.search(pattern, low_title) is not None
+        for pattern in (
+            r"^404(?:\s*[-–—:]\s*.*)?$",
+            r"^(?:error|chyba)\s*404(?:\b|\s*[-–—:])",
+            r"^404\s+(?:error|chyba|not found|page not found|stránka sa nenašla)\b",
+        )
+    )
+    if explicit_404_title or explicit_not_found:
         fail(rel, "source-error-page-migrated", title)
 
     for img in content.find_all("img"):
