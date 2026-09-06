@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=https://unpkg.com/@sveltia/cms/schema/sveltia-cms.json
+
+backend:
+  name: github
+  repo: luckyboy-aja/ochodnica
+  branch: main
+  auth_methods: [token]
+  commit_messages:
+    create: 'CMS: vytvorenie {{collection}} "{{slug}}"'
+    update: 'CMS: úprava {{collection}} "{{slug}}"'
+    delete: 'CMS: odstránenie {{collection}} "{{slug}}"'
+    uploadMedia: 'CMS: nahratie média "{{path}}"'
+    deleteMedia: 'CMS: odstránenie média "{{path}}"'
+
+site_url: https://luckyboy-aja.github.io/ochodnica/
+display_url: https://luckyboy-aja.github.io/ochodnica/
+media_folder: assets/cms
+public_folder: /ochodnica/assets/cms
+
+collections:
+  - name: novinky
+    label: Aktuality
+    label_singular: Aktualita
+    icon: newspaper
+    folder: cms-content/novinky
+    create: true
+    delete: true
+    slug: '{{slug}}'
+    summary: '{{date}} – {{title}}'
+    fields:
+      - { name: title, label: Názov, widget: string }
+      - { name: date, label: Dátum, widget: datetime, date_format: 'DD.MM.YYYY', time_format: 'HH:mm' }
+      - { name: perex, label: Perex, widget: text, required: false }
+      - { name: body, label: Obsah, widget: richtext }
+      - name: attachments
+        label: Prílohy
+        widget: list
+        required: false
+        fields:
+          - { name: label, label: Názov prílohy, widget: string }
+          - { name: file, label: Súbor, widget: file }
+      - { name: published, label: Publikované, widget: boolean, default: true }
+
+  - name: uradne_oznamy
+    label: Úradné oznamy
+    label_singular: Úradný oznam
+    icon: campaign
+    folder: cms-content/uradne-oznamy
+    create: true
+    delete: true
+    slug: '{{slug}}'
+    summary: '{{date}} – {{title}}'
+    fields:
+      - { name: title, label: Názov, widget: string }
+      - { name: date, label: Dátum, widget: datetime, date_format: 'DD.MM.YYYY', time_format: 'HH:mm' }
+      - { name: perex, label: Perex, widget: text, required: false }
+      - { name: body, label: Obsah, widget: richtext }
+      - name: attachments
+        label: Prílohy
+        widget: list
+        required: false
+        fields:
+          - { name: label, label: Názov prílohy, widget: string }
+          - { name: file, label: Súbor, widget: file }
+      - { name: published, label: Publikované, widget: boolean, default: true }
+
+  - name: stranky
+    label: Obsahové stránky
+    label_singular: Úprava stránky
+    icon: description
+    folder: cms-content/stranky
+    create: true
+    delete: true
+    slug: '{{slug}}'
+    summary: '{{title}} → {{target_path}}'
+    fields:
+      - { name: title, label: Názov stránky, widget: string }
+      - name: target_path
+        label: Cieľová cesta
+        widget: string
+        hint: 'Existujúca cesta, napr. sk/o-obci/historia.html alebo sk/kontakt.html'
+      - { name: body, label: Obsah, widget: richtext }
+      - { name: published, label: Použiť túto úpravu, widget: boolean, default: true }
+
+  - name: nastavenia
+    label: Nastavenia webu
+    icon: settings
+    files:
+      - name: kontakt
+        label: Kontaktné údaje
+        file: cms-content/settings.yml
+        format: yaml
+        fields:
+          - { name: municipality, label: Názov obce, widget: string }
+          - { name: address, label: Adresa, widget: string }
+          - { name: email, label: E-mail, widget: string }
+          - { name: phone, label: Telefón, widget: string }
+          - { name: mobile, label: Mobil, widget: string, required: false }
+          - { name: ico, label: IČO, widget: string }
+          - { name: mayor, label: Starosta, widget: string }
+          - { name: mayor_phone, label: Telefón starostu, widget: string, required: false }
